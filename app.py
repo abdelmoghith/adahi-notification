@@ -1,21 +1,28 @@
+import os
+import time
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
 import requests
 import resend
-import time
-import os
 
 URL = "https://adhahi.dz/api/v1/public/wilaya-quotas"
 
 last_status = None
 
-# 🔐 use environment variable instead of hardcoding
-resend.api_key = os.environ.get("RESEND_API_KEY")
+RESEND_API_KEY = "re_hyTG4vDR_EJehYkL9Gmxmh7dUwsbLS9nB"
+EMAIL_FROM = "onboarding@resend.dev"
+EMAIL_TO = "ecoms163@gmail.com"
+CHECK_INTERVAL_SECONDS = int(os.environ.get("CHECK_INTERVAL_SECONDS", "60"))
+PORT = int(os.environ.get("PORT", "10000"))
 
+resend.api_key = RESEND_API_KEY
 
 def send_email(subject, html):
     try:
         resend.Emails.send({
-            "from": "onboarding@resend.dev",
-            "to": "ecoms163@gmail.com",
+            "from": EMAIL_FROM,
+            "to": EMAIL_TO,
             "subject": subject,
             "html": html,
         })
@@ -56,8 +63,35 @@ def check():
         print("Error:", e)
 
 
-# 🔁 loop (ONLY use this locally, NOT on Render web service)
-if __name__ == "__main__":
+class HealthHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == "/":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(b"OK")
+            return
+
+        self.send_response(404)
+        self.end_headers()
+
+    def log_message(self, format, *args):
+        return
+
+
+def run_checker():
     while True:
         check()
-        time.sleep(60)
+        time.sleep(CHECK_INTERVAL_SECONDS)
+
+
+def run_server():
+    server = HTTPServer(("0.0.0.0", PORT), HealthHandler)
+    print(f"Listening on port {PORT}")
+    server.serve_forever()
+
+
+if __name__ == "__main__":
+    checker_thread = threading.Thread(target=run_checker, daemon=True)
+    checker_thread.start()
+    run_server()
