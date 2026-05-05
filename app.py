@@ -27,7 +27,7 @@ def check():
         data = requests.get(URL, timeout=10).json()
 
         for w in data:
-            if w["wilayaCode"] == "13":  # Tlemcen
+            if w["wilayaCode"] == "50":  # Tlemcen
                 current = w["available"]
 
                 if current and not last_status:
