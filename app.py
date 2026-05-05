@@ -1,12 +1,14 @@
 import requests
 import resend
 import time
+import os
 
 URL = "https://adhahi.dz/api/v1/public/wilaya-quotas"
 
-last_status = False
+last_status = None
 
-resend.api_key = "re_hyTG4vDR_EJehYkL9Gmxmh7dUwsbLS9nB"
+# 🔐 use environment variable instead of hardcoding
+resend.api_key = os.environ.get("RESEND_API_KEY")
 
 
 def send_email(subject, html):
@@ -17,41 +19,45 @@ def send_email(subject, html):
             "subject": subject,
             "html": html,
         })
+        print("📧 Email sent")
     except Exception as e:
         print("Email error:", e)
+
 
 def check():
     global last_status
 
     try:
-        data = requests.get(URL, timeout=10).json()
+        response = requests.get(URL, timeout=10)
+        response.raise_for_status()
+        data = response.json()
 
-        for w in data:
-            if w["wilayaCode"] == "50":  # Tlemcen
-                current = w["available"]
+        tlemcen = next((w for w in data if w["wilayaCode"] == "50"), None)
 
-                if current and not last_status:
-                    print("🔥 Tlemcen JUST became AVAILABLE!")
-                    send_email(
-                        "Tlemcen available",
-                        "<p>🔥 Tlemcen is <strong>NOW AVAILABLE</strong>!</p>",
-                    )
+        if not tlemcen:
+            print("Tlemcen not found")
+            return
 
-                elif not current:
-                    print("Not available")
+        current = bool(tlemcen["available"])
 
-                last_status = current
-                return
+        print("Current:", current, "| Last:", last_status)
+
+        # 🚨 trigger only on change false → true
+        if current and last_status is False:
+            print("🔥 Tlemcen JUST became AVAILABLE!")
+            send_email(
+                "Tlemcen available",
+                "<p>🔥 Tlemcen is <strong>NOW AVAILABLE</strong>!</p>",
+            )
+
+        last_status = current
 
     except Exception as e:
         print("Error:", e)
 
 
-# 🔁 check every 60 seconds
-while True:
-    check()
-    time.sleep(60)
-
-
-
-
+# 🔁 loop (ONLY use this locally, NOT on Render web service)
+if __name__ == "__main__":
+    while True:
+        check()
+        time.sleep(60)
