@@ -109,6 +109,17 @@ def check():
 
 
 class HealthHandler(BaseHTTPRequestHandler):
+    def do_HEAD(self):
+        # UptimeRobot sends HEAD requests — respond with 200 for /ping
+        if self.path == "/ping":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Content-Length", "4")
+            self.end_headers()
+        else:
+            self.send_response(404)
+            self.end_headers()
+
     def do_GET(self):
         if self.path == "/":
             status_lines = " | ".join(
