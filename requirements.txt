@@ -1,0 +1,3 @@
+requests[socks]
+resend
+urllib3
